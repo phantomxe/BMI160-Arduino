@@ -18,8 +18,10 @@ bool BMI160GenClass::begin(Mode mode, const int arg1, const int arg2)
     case I2C_MODE:
         i2c_addr = arg1;
         break;
-    case SPI_MODE:
+    case SPI_MODE: 
         spi_ss = arg1;
+        SPI.begin();
+        pinMode(spi_ss, OUTPUT);
         break;
     default:
         return false;
@@ -34,6 +36,35 @@ bool BMI160GenClass::begin(Mode mode, const int arg1, const int arg2)
 #endif
     }
     return CurieIMUClass::begin();
+}
+
+bool BMI160GenClass::multiSpiBegin(const int *cs_pins)
+{
+    int size = sizeof(cs_pins) / sizeof(cs_pins[0]);
+    if(size < 1) {
+      return false;
+    }
+
+    SPI.begin();
+
+    this->mode = SPI_MODE; 
+
+    bool status = false;
+    
+    for(int i = 0; i < size; i++) { 
+      spi_ss = cs_pins[i];
+
+      pinMode(cs_pins[i], OUTPUT);    //configure pin mode
+      digitalWrite(cs_pins[i], HIGH); //deselect them
+
+      status &= CurieIMUClass::begin();
+    }
+
+    spi_ss = cs_pins[0]; //default pin
+}
+
+void BMI160GenClass::setSelectPin(const int spi_cs_pin) {
+  this->spi_ss = spi_cs_pin;
 }
 
 void BMI160GenClass::attachInterrupt(void (*callback)(void))
@@ -139,23 +170,7 @@ int BMI160GenClass::i2c_xfer(uint8_t *buf, unsigned tx_cnt, unsigned rx_cnt)
 }
 
 void BMI160GenClass::spi_init()
-{
-#ifdef DEBUG
-  Serial.println("BMI160GenClass::spi_init()...");
-#endif // DEBUG
-
-  // start the SPI library:
-  SPI.begin();
-  if (0 <= spi_ss) {
-    pinMode(spi_ss, OUTPUT);
-  } else {
-    Serial.println("BMI160GenClass::spi_init(): WARNING: No chip select pin specified.");
-  }
-
-#ifdef DEBUG
-  Serial.println("BMI160GenClass::spi_init()...done");
-#endif // DEBUG
-}
+{ }
 
 int BMI160GenClass::spi_xfer(uint8_t *buf, unsigned tx_cnt, unsigned rx_cnt)
 {
